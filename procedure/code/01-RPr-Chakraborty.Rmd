@@ -1,6 +1,6 @@
 ---
 title: "Reproduction of Chakraborty 2021: An intracategorical analysis of COVID-19 and people with disabilities"
-author: "Joseph Holler, Junyi Zhou, Peter Kedron, Drew An-Pham, Derrick Burt"
+author: "Joseph Holler, Junyi Zhou, Peter Kedron, Drew An-Pham, Derrick Burt, Alex Xu"
 date: "`r Sys.Date()`"
 output: pdf_document
 editor_options:
@@ -10,7 +10,7 @@ knit: (function(inputFile, encoding) {
   rmarkdown::render(inputFile, encoding = encoding, output_dir = "../../docs/report") })
 ---
 
-Version 2.0 \| First Created July 7, 2021 \| Updated June 26, 2023
+Version 2.1 \| First Created July 7, 2021 \| Updated September, 2023
 
 # Abstract
 
@@ -210,7 +210,7 @@ state <- get_acs(
 )
 
 # Save query results
-saveRDS(acs, here("data", "raw", "public", "acs.RDS"))
+saveRDS(acs, here("data", "raw", "public", "acs.RDS"))  # here() where to save, saveRDS()
 saveRDS(acs_pov, here("data", "raw", "public", "acs_pov.RDS"))
 saveRDS(state, here("data", "raw", "public", "state.RDS"))
 ```
@@ -345,7 +345,7 @@ acs_covid <- acs_derived %>%
 acs_covid <- acs_covid %>%
   select(fips, statefp, county, county_st, covid_rate, everything())
 
-rm(acs, acs_derived, covid)
+rm(acs, acs_derived, covid) # to remove these data
 ```
 
 ## Missing data
@@ -385,6 +385,8 @@ tm_covid_rates <- tm_shape(acs_covid) +
   )
 
 tm_covid_rates
+
+# How does the legend come up with 5 quantiles?
 ```
 
 ## Map disability rates
@@ -409,6 +411,8 @@ tm_disability_rates <- tm_shape(acs_covid) +
   )
 
 tm_disability_rates
+
+# How does the legend come up with 5 quantiles?
 ```
 
 ## Descriptive statistics
