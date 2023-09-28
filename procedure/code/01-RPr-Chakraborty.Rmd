@@ -732,7 +732,7 @@ Optionally, skip this code block due to long run times of more than 10 minutes.
 ###Alex's deviation plan starts
 
 ```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
-start_time_05 <- Sys.time()
+start_time  <- Sys.time()
 covid_geo <- covid_table %>%
   select(x, y) %>%
   latlong2grid()
@@ -743,7 +743,7 @@ covid_geo <- covid_table %>%
 expected.cases <- expected(covid_table$pop, covid_table$cases, 1)
 
 # Kulldorff spatial scan statistic
-covid_kulldorff_05 <- kulldorff(
+covid_kulldorff  <- kulldorff(
   geo = covid_geo,
   cases = covid_table$cases,
   population = covid_table$pop,
@@ -760,12 +760,12 @@ covid_kulldorff_05 <- kulldorff(
 print(
   paste(
     "Run time:",
-    round(difftime(Sys.time(), start_time_05, units = "mins"), 2),
+    round(difftime(Sys.time(), start_time , units = "mins"), 2),
     "minutes"
   ),
   quote = FALSE
 )
-rm(start_time_05)
+rm(start_time )
 #covid_geo, expected.cases,
 
 
@@ -813,7 +813,7 @@ rm(start_time_015)
 
 # {save results in a file appended with the current date}
 
-saveRDS(covid_kulldorff_05, file = here("data", "derived", "public", paste0("covid_kulldorff_05_", Sys.Date(), ".RDS")) )
+saveRDS(covid_kulldorff , file = here("data", "derived", "public", paste0("covid_kulldorff _", Sys.Date(), ".RDS")) )
 
 saveRDS(covid_kulldorff_015, file = here("data", "derived", "public", paste0("covid_kulldorff_015_", Sys.Date(), ".RDS")) )
 
@@ -825,7 +825,7 @@ Alternatively, skip or modify this code block to use your own version of the Spa
 ```{r load-Kulldorff}
 # load pre-calculated Kulldorff results
 # alternatively, modify the file name with an appended date to load a more current set of results
-#covid_kulldorff_05 <- readRDS(
+#covid_kulldorff  <- readRDS(
 #  here("data", "derived", "public", "covid_kulldorff.RDS")
 #)
 ```
@@ -834,11 +834,11 @@ Report Kulldorff spatial scan results.
 
 ```{r report-Kulldorff}
 print("Most likely cluster 50 percent:", quote = FALSE)
-covid_kulldorff_05$most.likely.cluster
+covid_kulldorff $most.likely.cluster
 print(
   paste0(
     "Number of Secondary clusters: ",
-    length(covid_kulldorff_05$secondary.clusters)
+    length(covid_kulldorff $secondary.clusters)
   ),
   quote = FALSE
 )
@@ -862,27 +862,27 @@ Therefore, we use the FIPS code of the county at the center of each cluster as t
 
 ```{r assign-cluster-IDs, message = FALSE}
 # list of primary cluster locations (counties)
-cluster_locations_05 <- covid_kulldorff_05$most.likely.cluster$location.IDs.included
+cluster_locations  <- covid_kulldorff $most.likely.cluster$location.IDs.included
 
 # create data frame of clusters and
 # calculate the clusterID as the first (center) county FIPS code
-clusters_05 <- covid_table[cluster_locations_05, "fips"] %>%
-  mutate(clusterID = covid_table[[cluster_locations_05[1], "fips"]],
-         likelihood = covid_kulldorff_05$most.likely.cluster$log.likelihood.ratio)
+clusters  <- covid_table[cluster_locations , "fips"] %>%
+  mutate(clusterID = covid_table[[cluster_locations [1], "fips"]],
+         likelihood = covid_kulldorff $most.likely.cluster$log.likelihood.ratio)
 
 # Get a list of secondary clusters
-secondary_05 <- covid_kulldorff_05$secondary.clusters
+secondary  <- covid_kulldorff $secondary.clusters
 
 # similarly add counties in each secondary cluster to the list of clusters
-for (i in secondary_05) {
-  cluster_locations_05 <- i$location.IDs.included
-  new_clusters <- covid_table[cluster_locations_05, "fips"] %>%
-    mutate(clusterID = covid_table[[cluster_locations_05[1], "fips"]],
+for (i in secondary ) {
+  cluster_locations  <- i$location.IDs.included
+  new_clusters <- covid_table[cluster_locations , "fips"] %>%
+    mutate(clusterID = covid_table[[cluster_locations [1], "fips"]],
            likelihood = i$log.likelihood.ratio)
-  clusters_05 <- clusters_05 %>% rbind(new_clusters)
+  clusters  <- clusters  %>% rbind(new_clusters)
 }
 
-rm(cluster_locations_05, secondary_05, i, new_clusters)
+rm(cluster_locations , secondary , i, new_clusters)
 ```
 
 ### Alex's deviation
@@ -926,8 +926,8 @@ Next, calculate a new field `isCluster` to identify counties in COVID-19 cluster
 Additionally, distinguish between counties defining the center of a cluster from counties constituting other parts of a cluster by comparing the cluster ID (equivalent to the center county's fips code) to the county fips code.
 
 ```{r join-clusterID-to-acs_covid}
-acs_covid_05 <- acs_covid[, 1:which(colnames(acs_covid) == "or_incidence")] %>%
-  left_join(clusters_05, by = "fips") %>%
+acs_covid  <- acs_covid[, 1:which(colnames(acs_covid) == "or_incidence")] %>%
+  left_join(clusters , by = "fips") %>%
   mutate(isCluster = case_when(
     clusterID == fips ~ "center of cluster",
     !is.na(clusterID) ~ "other part of cluster",
@@ -947,10 +947,10 @@ acs_covid_015 <- acs_covid[, 1:which(colnames(acs_covid) == "or_incidence")] %>%
 **Planned deviation for reproduction**: Map the `SpatialEpi` cluster results.
 
 ```{r map-clusters}
-tm_spatialepi_clusters_05 <-
+tm_spatialepi_clusters  <-
   tm_shape(state) +
     tm_fill("gray98") +
-  tm_shape(acs_covid_05) +
+  tm_shape(acs_covid ) +
   tm_polygons(col = "isCluster",
           palette = "-Oranges",
           popup.vars = c("fips", "clusterID"),
@@ -988,7 +988,7 @@ tm_spatialepi_clusters_015 <-
     legend.text.size = 0.5
   )
 
-tm_spatialepi_clusters_05
+tm_spatialepi_clusters 
 tm_spatialepi_clusters_015
 ```
 
