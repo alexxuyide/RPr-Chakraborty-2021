@@ -147,7 +147,7 @@ The American Community Survey (ACS) five-year estimate (2014-2018) variables use
 Details on ACS data collection can be found at <https://www.census.gov/topics/health/disability/guidance/data-collection-acs.html> and details on sampling methods and accuracy can be found at <https://www.census.gov/programs-surveys/acs/technical-documentation/code-lists.html>.
 
 |                            Variable Name in Study                            |                                               ACS Variable name                                                |
-|:----------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------------------------:|
+|:----------------------------:|:----------------------------------------:|
 | percent of total civilian non-institutionalized population with a disability |                                                 S1810_C03_001E                                                 |
 |                                   **Race**                                   |                                                                                                                |
 |                      percent w disability: White alone                       |                                                 S1810_C03_004E                                                 |
@@ -353,10 +353,12 @@ rm(acs, acs_derived, covid) # to remove these data
 **Unplanned deviation for reproduction**: There is one county with missing disability and poverty data.
 This was not mentioned in the original study or in our pre-analyis plan.
 However, we replace the missing data with zeros, producing results identical to Chakraborty's.
-
+### Alex needs to change this table 
 ```{r missing data}
 # county with missing data
-filter(acs_covid, is.na(bpov_pct)) %>% st_drop_geometry() %>% kable()
+horizontal <- t(filter(acs_covid, is.na(bpov_pct))) %>% st_drop_geometry() %>%kable()
+
+horizontal
 
 # replace NA with 0 for missing data
 acs_covid[is.na(acs_covid$bpov_pct), ]$bpov_pct <- 0
@@ -727,8 +729,10 @@ We expected that this set of software options could reproduce identical results 
 First, calculate the Kulldorff spatial scan statistic using SpatialEpi.
 Optionally, skip this code block due to long run times of more than 10 minutes.
 
+###Alex's deviation plan starts
+
 ```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
-start_time <- Sys.time()
+start_time_05 <- Sys.time()
 covid_geo <- covid_table %>%
   select(x, y) %>%
   latlong2grid()
@@ -739,7 +743,7 @@ covid_geo <- covid_table %>%
 expected.cases <- expected(covid_table$pop, covid_table$cases, 1)
 
 # Kulldorff spatial scan statistic
-covid_kulldorff <- kulldorff(
+covid_kulldorff_05 <- kulldorff(
   geo = covid_geo,
   cases = covid_table$cases,
   population = covid_table$pop,
@@ -749,21 +753,70 @@ covid_kulldorff <- kulldorff(
   alpha.level = 0.05,
   plot = TRUE
 )
+```
 
+
+```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
 print(
   paste(
     "Run time:",
-    round(difftime(Sys.time(), start_time, units = "mins"), 2),
+    round(difftime(Sys.time(), start_time_05, units = "mins"), 2),
     "minutes"
   ),
   quote = FALSE
 )
-rm(covid_geo, expected.cases, start_time)
+rm(start_time_05)
+#covid_geo, expected.cases,
 
-# save results in a file appended with the current date
-saveRDS(covid_kulldorff,
-  file = here("data", "derived", "public", paste0("covid_kulldorff_", Sys.Date(), ".RDS"))
+
+```
+
+When pop.upper.bound = 0.35
+
+```{r}
+start_time_015 <- Sys.time()
+covid_geo <- covid_table %>%
+  select(x, y) %>%
+  latlong2grid()
+# latlong2grid creates approximate equidistant cylindrical grid
+# could probably reproject to epsg 5070 and create table with x and y
+
+# calculate expected cases with one strata
+expected.cases <- expected(covid_table$pop, covid_table$cases, 1)
+
+# Kulldorff spatial scan statistic
+covid_kulldorff_015 <- kulldorff(
+  geo = covid_geo,
+  cases = covid_table$cases,
+  population = covid_table$pop,
+  expected.cases = expected.cases,
+  pop.upper.bound = 0.15,
+  n.simulations = 999,
+  alpha.level = 0.05,
+  plot = TRUE
 )
+
+print(
+  paste(
+    "Run time:",
+    round(difftime(Sys.time(), start_time_015, units = "mins"), 2),
+    "minutes"
+  ),
+  quote = FALSE
+)
+rm(start_time_015)
+#covid_geo, expected.cases,
+
+```
+
+```{r}
+
+# {save results in a file appended with the current date}
+
+saveRDS(covid_kulldorff_05, file = here("data", "derived", "public", paste0("covid_kulldorff_05_", Sys.Date(), ".RDS")) )
+
+saveRDS(covid_kulldorff_015, file = here("data", "derived", "public", paste0("covid_kulldorff_015_", Sys.Date(), ".RDS")) )
+
 ```
 
 Load pre-calculated Kulldorff spatial scan results.
@@ -772,20 +825,30 @@ Alternatively, skip or modify this code block to use your own version of the Spa
 ```{r load-Kulldorff}
 # load pre-calculated Kulldorff results
 # alternatively, modify the file name with an appended date to load a more current set of results
-covid_kulldorff <- readRDS(
-  here("data", "derived", "public", "covid_kulldorff.RDS")
-)
+#covid_kulldorff_05 <- readRDS(
+#  here("data", "derived", "public", "covid_kulldorff.RDS")
+#)
 ```
 
 Report Kulldorff spatial scan results.
 
 ```{r report-Kulldorff}
-print("Most likely cluster:", quote = FALSE)
-covid_kulldorff$most.likely.cluster
+print("Most likely cluster 50 percent:", quote = FALSE)
+covid_kulldorff_05$most.likely.cluster
 print(
   paste0(
     "Number of Secondary clusters: ",
-    length(covid_kulldorff$secondary.clusters)
+    length(covid_kulldorff_05$secondary.clusters)
+  ),
+  quote = FALSE
+)
+
+print("Most likely cluster 35 percent:", quote = FALSE)
+covid_kulldorff_015$most.likely.cluster
+print(
+  paste0(
+    "Number of Secondary clusters: ",
+    length(covid_kulldorff_015$secondary.clusters)
   ),
   quote = FALSE
 )
@@ -799,28 +862,58 @@ Therefore, we use the FIPS code of the county at the center of each cluster as t
 
 ```{r assign-cluster-IDs, message = FALSE}
 # list of primary cluster locations (counties)
-cluster_locations <- covid_kulldorff$most.likely.cluster$location.IDs.included
+cluster_locations_05 <- covid_kulldorff_05$most.likely.cluster$location.IDs.included
 
 # create data frame of clusters and
 # calculate the clusterID as the first (center) county FIPS code
-clusters <- covid_table[cluster_locations, "fips"] %>%
-  mutate(clusterID = covid_table[[cluster_locations[1], "fips"]],
-         likelihood = covid_kulldorff$most.likely.cluster$log.likelihood.ratio)
+clusters_05 <- covid_table[cluster_locations_05, "fips"] %>%
+  mutate(clusterID = covid_table[[cluster_locations_05[1], "fips"]],
+         likelihood = covid_kulldorff_05$most.likely.cluster$log.likelihood.ratio)
 
 # Get a list of secondary clusters
-secondary <- covid_kulldorff$secondary.clusters
+secondary_05 <- covid_kulldorff_05$secondary.clusters
 
 # similarly add counties in each secondary cluster to the list of clusters
-for (i in secondary) {
-  cluster_locations <- i$location.IDs.included
-  new_clusters <- covid_table[cluster_locations, "fips"] %>%
-    mutate(clusterID = covid_table[[cluster_locations[1], "fips"]],
+for (i in secondary_05) {
+  cluster_locations_05 <- i$location.IDs.included
+  new_clusters <- covid_table[cluster_locations_05, "fips"] %>%
+    mutate(clusterID = covid_table[[cluster_locations_05[1], "fips"]],
            likelihood = i$log.likelihood.ratio)
-  clusters <- clusters %>% rbind(new_clusters)
+  clusters_05 <- clusters_05 %>% rbind(new_clusters)
 }
 
-rm(cluster_locations, secondary, i, new_clusters)
+rm(cluster_locations_05, secondary_05, i, new_clusters)
 ```
+
+### Alex's deviation
+Do the same thing for pop upper bound = 35%
+```{r}
+# list of primary cluster locations (counties)
+cluster_locations_015 <- covid_kulldorff_015$most.likely.cluster$location.IDs.included
+
+# create data frame of clusters and
+# calculate the clusterID as the first (center) county FIPS code
+clusters_015 <- covid_table[cluster_locations_015, "fips"] %>%
+  mutate(clusterID = covid_table[[cluster_locations_015[1], "fips"]],
+         likelihood = covid_kulldorff_015$most.likely.cluster$log.likelihood.ratio)
+
+# Get a list of secondary clusters
+secondary_015 <- covid_kulldorff_015$secondary.clusters
+
+# similarly add counties in each secondary cluster to the list of clusters
+for (i in secondary_015) {
+  cluster_locations_015 <- i$location.IDs.included
+  new_clusters <- covid_table[cluster_locations_015, "fips"] %>%
+    mutate(clusterID = covid_table[[cluster_locations_015[1], "fips"]],
+           likelihood = i$log.likelihood.ratio)
+  clusters_015 <- clusters_015 %>% rbind(new_clusters)
+}
+
+rm(cluster_locations_015, secondary_015, i, new_clusters)
+```
+
+
+
 
 ### Map Kulldorff clusters
 
@@ -833,27 +926,36 @@ Next, calculate a new field `isCluster` to identify counties in COVID-19 cluster
 Additionally, distinguish between counties defining the center of a cluster from counties constituting other parts of a cluster by comparing the cluster ID (equivalent to the center county's fips code) to the county fips code.
 
 ```{r join-clusterID-to-acs_covid}
-acs_covid <- acs_covid[, 1:which(colnames(acs_covid) == "or_incidence")] %>%
-  left_join(clusters, by = "fips") %>%
+acs_covid_05 <- acs_covid[, 1:which(colnames(acs_covid) == "or_incidence")] %>%
+  left_join(clusters_05, by = "fips") %>%
   mutate(isCluster = case_when(
     clusterID == fips ~ "center of cluster",
     !is.na(clusterID) ~ "other part of cluster",
     .default = NA
   ))
+
+acs_covid_015 <- acs_covid[, 1:which(colnames(acs_covid) == "or_incidence")] %>%
+  left_join(clusters_015, by = "fips") %>%
+  mutate(isCluster = case_when(
+    clusterID == fips ~ "center of cluster",
+    !is.na(clusterID) ~ "other part of cluster",
+    .default = NA
+  ))
+
 ```
 
 **Planned deviation for reproduction**: Map the `SpatialEpi` cluster results.
 
 ```{r map-clusters}
-tm_spatialepi_clusters <-
+tm_spatialepi_clusters_05 <-
   tm_shape(state) +
     tm_fill("gray98") +
-  tm_shape(acs_covid) +
+  tm_shape(acs_covid_05) +
   tm_polygons(col = "isCluster",
           palette = "-Oranges",
           popup.vars = c("fips", "clusterID"),
           colorNA = NULL,
-          title = "SpatialEpi Kulldorff COVID-19 Clusters",
+          title = "SpatialEpi Kulldorff COVID-19 Clusters Pop=50%",
           border.col = "white",
           lwd = 0.2,
           border.alpha = 0.2) +
@@ -865,7 +967,29 @@ tm_spatialepi_clusters <-
     legend.text.size = 0.5
   )
 
-tm_spatialepi_clusters
+
+tm_spatialepi_clusters_015 <-
+  tm_shape(state) +
+    tm_fill("gray98") +
+  tm_shape(acs_covid_015) +
+  tm_polygons(col = "isCluster",
+          palette = "-Oranges",
+          popup.vars = c("fips", "clusterID"),
+          colorNA = NULL,
+          title = "SpatialEpi Kulldorff COVID-19 Clusters Pop=35%",
+          border.col = "white",
+          lwd = 0.2,
+          border.alpha = 0.2) +
+  tm_shape(state) +
+    tm_borders("grey", lwd = 0.5) +
+  tm_layout(
+    legend.position = c("left", "bottom"),
+    legend.title.size = 0.8,
+    legend.text.size = 0.5
+  )
+
+tm_spatialepi_clusters_05
+tm_spatialepi_clusters_015
 ```
 
 **Unplanned deviation for reproduction**: The `SpatialEpi` implementation of Kulldorff spatial scan statistics does not calculate local relative risk or cluster relative risk.
@@ -1358,7 +1482,7 @@ The maps and crosstabulation above indicate that there are important differences
 We summarize our understanding of the computational differences for default settings below, based on close examination of our software outputs, technical documentation for SaTScan, and the documentation and code repository for SpatialEpi.
 
 |                          |      SaTScan Hierarchical      |            SaTScan GINI            |                  SpatialEpi                  |
-|:------------------------:|:------------------------------:|:----------------------------------:|:--------------------------------------------:|
+|:---------------:|:---------------:|:---------------:|:------------------:|
 |     possible shapes      |  circle (default) or ellipse   |    circle (default) or ellipse     |                    circle                    |
 | possible cluster centers | locations with rates \> normal |   locations with rates \> normal   |                all locations                 |
 |   maximum cluster size   |          50% of cases          | varies, not exceeding 50% of cases |              50% of population               |
