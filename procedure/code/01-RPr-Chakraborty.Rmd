@@ -147,7 +147,7 @@ The American Community Survey (ACS) five-year estimate (2014-2018) variables use
 Details on ACS data collection can be found at <https://www.census.gov/topics/health/disability/guidance/data-collection-acs.html> and details on sampling methods and accuracy can be found at <https://www.census.gov/programs-surveys/acs/technical-documentation/code-lists.html>.
 
 |                            Variable Name in Study                            |                                               ACS Variable name                                                |
-|:----------------------------:|:----------------------------------------:|
+|:----------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------------------------:|
 | percent of total civilian non-institutionalized population with a disability |                                                 S1810_C03_001E                                                 |
 |                                   **Race**                                   |                                                                                                                |
 |                      percent w disability: White alone                       |                                                 S1810_C03_004E                                                 |
@@ -353,12 +353,12 @@ rm(acs, acs_derived, covid) # to remove these data
 **Unplanned deviation for reproduction**: There is one county with missing disability and poverty data.
 This was not mentioned in the original study or in our pre-analyis plan.
 However, we replace the missing data with zeros, producing results identical to Chakraborty's.
-### Alex needs to change this table 
+
 ```{r missing data}
 # county with missing data
 horizontal <- t(filter(acs_covid, is.na(bpov_pct))) %>% st_drop_geometry() %>%kable()
 
-horizontal
+names(horizontal)[1] <- "Values"
 
 # replace NA with 0 for missing data
 acs_covid[is.na(acs_covid$bpov_pct), ]$bpov_pct <- 0
@@ -732,7 +732,7 @@ Optionally, skip this code block due to long run times of more than 10 minutes.
 ###Alex's deviation plan starts
 
 ```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
-start_time  <- Sys.time()
+start_time <- Sys.time()
 covid_geo <- covid_table %>%
   select(x, y) %>%
   latlong2grid()
@@ -743,7 +743,7 @@ covid_geo <- covid_table %>%
 expected.cases <- expected(covid_table$pop, covid_table$cases, 1)
 
 # Kulldorff spatial scan statistic
-covid_kulldorff  <- kulldorff(
+covid_kulldorff <- kulldorff(
   geo = covid_geo,
   cases = covid_table$cases,
   population = covid_table$pop,
@@ -754,7 +754,6 @@ covid_kulldorff  <- kulldorff(
   plot = TRUE
 )
 ```
-
 
 ```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
 print(
@@ -813,7 +812,7 @@ rm(start_time_015)
 
 # {save results in a file appended with the current date}
 
-saveRDS(covid_kulldorff , file = here("data", "derived", "public", paste0("covid_kulldorff _", Sys.Date(), ".RDS")) )
+saveRDS(covid_kulldorff, file = here("data", "derived", "public", paste0("covid_kulldorff _", Sys.Date(), ".RDS")) )
 
 saveRDS(covid_kulldorff_015, file = here("data", "derived", "public", paste0("covid_kulldorff_015_", Sys.Date(), ".RDS")) )
 
@@ -834,11 +833,11 @@ Report Kulldorff spatial scan results.
 
 ```{r report-Kulldorff}
 print("Most likely cluster 50 percent:", quote = FALSE)
-covid_kulldorff $most.likely.cluster
+covid_kulldorff$most.likely.cluster
 print(
   paste0(
     "Number of Secondary clusters: ",
-    length(covid_kulldorff $secondary.clusters)
+    length(covid_kulldorff$secondary.clusters)
   ),
   quote = FALSE
 )
@@ -886,7 +885,9 @@ rm(cluster_locations , secondary , i, new_clusters)
 ```
 
 ### Alex's deviation
-Do the same thing for pop upper bound = 35%
+
+Do the same thing for pop upper bound = 15%
+
 ```{r}
 # list of primary cluster locations (counties)
 cluster_locations_015 <- covid_kulldorff_015$most.likely.cluster$location.IDs.included
@@ -894,7 +895,7 @@ cluster_locations_015 <- covid_kulldorff_015$most.likely.cluster$location.IDs.in
 # create data frame of clusters and
 # calculate the clusterID as the first (center) county FIPS code
 clusters_015 <- covid_table[cluster_locations_015, "fips"] %>%
-  mutate(clusterID = covid_table[[cluster_locations_015[1], "fips"]],
+  mutate(clusterID_015 = covid_table[[cluster_locations_015[1], "fips"]],
          likelihood = covid_kulldorff_015$most.likely.cluster$log.likelihood.ratio)
 
 # Get a list of secondary clusters
@@ -904,16 +905,13 @@ secondary_015 <- covid_kulldorff_015$secondary.clusters
 for (i in secondary_015) {
   cluster_locations_015 <- i$location.IDs.included
   new_clusters <- covid_table[cluster_locations_015, "fips"] %>%
-    mutate(clusterID = covid_table[[cluster_locations_015[1], "fips"]],
+    mutate(clusterID_015 = covid_table[[cluster_locations_015[1], "fips"]],
            likelihood = i$log.likelihood.ratio)
   clusters_015 <- clusters_015 %>% rbind(new_clusters)
 }
 
 rm(cluster_locations_015, secondary_015, i, new_clusters)
 ```
-
-
-
 
 ### Map Kulldorff clusters
 
@@ -937,8 +935,8 @@ acs_covid  <- acs_covid[, 1:which(colnames(acs_covid) == "or_incidence")] %>%
 acs_covid_015 <- acs_covid[, 1:which(colnames(acs_covid) == "or_incidence")] %>%
   left_join(clusters_015, by = "fips") %>%
   mutate(isCluster = case_when(
-    clusterID == fips ~ "center of cluster",
-    !is.na(clusterID) ~ "other part of cluster",
+    clusterID_015 == fips ~ "center of cluster",
+    !is.na(clusterID_015) ~ "other part of cluster",
     .default = NA
   ))
 
@@ -1482,7 +1480,7 @@ The maps and crosstabulation above indicate that there are important differences
 We summarize our understanding of the computational differences for default settings below, based on close examination of our software outputs, technical documentation for SaTScan, and the documentation and code repository for SpatialEpi.
 
 |                          |      SaTScan Hierarchical      |            SaTScan GINI            |                  SpatialEpi                  |
-|:---------------:|:---------------:|:---------------:|:------------------:|
+|:------------------------:|:------------------------------:|:----------------------------------:|:--------------------------------------------:|
 |     possible shapes      |  circle (default) or ellipse   |    circle (default) or ellipse     |                    circle                    |
 | possible cluster centers | locations with rates \> normal |   locations with rates \> normal   |                all locations                 |
 |   maximum cluster size   |          50% of cases          | varies, not exceeding 50% of cases |              50% of population               |
@@ -1985,8 +1983,7 @@ tm_gee_weights <- tm_shape(gee_resid) +
     border.alpha = .2,
     lwd = 0.2,
     palette = "Oranges",
-    legend.hist = FALSE,
-    midpoint = 0
+    legend.hist = FALSE
   ) +
   tm_shape(state) +
     tm_borders("grey", lwd = .5) +
@@ -2075,30 +2072,21 @@ All other counties were classified as minimal risk.
 We also discovered that unlike SaTScan, the SpatialEpi package in R did not calculate local or cluster relative risk.
 
 Therefore, we changed our conceptualization of COVID-19 clusters to include all counties within any cluster.
-We calculated relative risk for localities (counties) and clusters as `(incidence rate within the county) / (incidence rate outside of the county)`.
-We calculated the Kulldorff spatial scan statistic in `SpatialEpi` and then calculated local relative risk for any county within any of the resulting clusters.
-Once we joined the spatial clustering data to all counties with socio-demographic and COVID-19 data, we observed that all counties outside of any cluster had `null` or `na` data for COVID-19 risk.
-We inspected the original author's data to determine how to classify these counties, and accordingly assigned them to the lowest risk class: `1`.
+We calculated relative risk for localities (counties) and clusters as (incidence rate within the county) / (incidence rate outside of the county).
+We calculated the Kulldorff spatial scan statistic in SpatialEpi and then calculated local relative risk for any county within any of the resulting clusters.
+Once we joined the spatial clustering data to all counties with socio-demographic and COVID-19 data, we observed that all counties outside of any cluster had null or na data for COVID-19 risk.
+We inspected the original author's data to determine how to classify these counties, and accordingly assigned them to the lowest risk class: 1.
 We created a map showing the relative risk score of each county (Figure 5) for comparison with the original analysis and to assess its appropriateness for GEE clusters.
 We proceeded to combine the local COVID risk score with State ID's for use as the GEE clustering ID and to run the GEE models.
 
 At this point we observed the spatial heterogeneity of local relative risk (Figure 5) and considered the original purpose of calculating clusters and relative risk classes, which was to control for spatial dependence within states and COVID-19 hotspots.
 Out of concern to balance a need to control for spatial dependence while not accounting for too much variation within the dependent variable, we decided to re-conceptualize the classification of COVID risk using cluster-based relative risk.
-To calculate the cluster relative risk, we created a list of unique cluster IDs and extracted the counties contained within each cluster from `SpatialEpi` output and calculated cluster relative risk as: `(incidence rate within the cluster) / (incidence rate outside of the cluster)`.
+To calculate the cluster relative risk, we created a list of unique cluster IDs and extracted the counties contained within each cluster from SpatialEpi output and calculated cluster relative risk as: (incidence rate within the cluster) / (incidence rate outside of the cluster).
 We then classified the cluster relative risk with the original method, illustrated in Table 2.
 We re-classified the GEE clustering IDs based on state and cluster relative risk class and recalculated the generalized estimating equations using this alternative conceptualization of COVID-19 risk.
 
 Upon discovering different results in all of our reproduction GEE models compared to the original study, we added new models to assess the extent to which the different computational environment was causing differences in our results.
 We therefore ran another set of the five GEE models using data provided by the original author, expecting to find identical results.
-
-### Rationale for updated report
-
-This is the second version of our reproduction report.
-The first, registered at <https://doi.org/10.17605/OSF.IO/647EX> on July 22, 2022, represented our best knowledge of the study at that time.
-Subsequently, we improved our approaches to reproduction studies by revising pre-analysis plans and post-analysis reports into legible code RMarkdown documents.
-This change prompted us to re-order some content to flow more linearly with the sequencing required by code, and prompted us to digitize (if necessary) and import results from the original research into Rmarkdown for quantitative comparison to the reproduction study.
-These comparisons led to further insights and research into discrepancies between the original and reproduced Pearsons's correlations between various forms of the Kulldorff spatial scan statistic.
-We also discovered an improved method for comparing the results of generalized linear models by plotting all of the model results on a dot-wisker graph using the dotwhisker package.
 
 # Emily's Discussion
 
@@ -2196,3 +2184,12 @@ In sum, although some of our results differed from Chakraborty's because of diff
 We reiterate Chakraborty's carefully limited interpretation emphasizing county-level relationships and the need for additional data and research, because the estimated relationship at the county level may not hold at the individual level.
 Interpretation of the results were based on aggregate statistics at the county level and on statistical methods which produce approximate estimates, not inferences.
 Further work is needed to reliably infer relationships between minority PwDs and COVID-19 morbidity and mortality, especially at finer geographic scales.
+
+### Rationale for updated report
+
+This is the second version of our reproduction report.
+The first, registered at <https://doi.org/10.17605/OSF.IO/647EX> on July 22, 2022, represented our best knowledge of the study at that time.
+Subsequently, we improved our approaches to reproduction studies by revising pre-analysis plans and post-analysis reports into legible code RMarkdown documents.
+This change prompted us to re-order some content to flow more linearly with the sequencing required by code, and prompted us to digitize (if necessary) and import results from the original research into Rmarkdown for quantitative comparison to the reproduction study.
+These comparisons led to further insights and research into discrepancies between the original and reproduced Pearsons's correlations between various forms of the Kulldorff spatial scan statistic.
+We also discovered an improved method for comparing the results of generalized linear models by plotting all of the model results on a dot-wisker graph using the dotwhisker package.
