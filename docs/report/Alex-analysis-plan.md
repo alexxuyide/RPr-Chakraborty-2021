@@ -1,0 +1,11 @@
+---
+title: "Chakraborty (2021) Modification Plan"
+---
+
+# Initial Modification Plan
+
+In my reproduction, I would like to tune around the parameter `pop.upper.bound` of the Kulldorff spatial scan statistic model to see how different parameter value will affect the result of the clusters. In the original reproduction study, we have find a significant cluster in the Southern United states that centers at a county in the Northern Florida. According to our understanding of COVID cases and the map of the COVID cases that is produced at the earlier stage of this study, this cluster is omitting several COVID cases clusters of the urban area in the South such as Atlanta, New Orleans, and Miami. Ideally, we would like to have clusters that have centers in these urban areas. However, due to the relatively even distribution of cases in the South, the Kulldorff model may tend to include all of them as one circle cluster. We want these clusters to receive enough weight as they should in the following GEE step. Therefore, I would like to adjust the parameter pop.upper.bound of the Kulldorff model, which the original study used the default setting 0.5. The pop.upper.bound parameter is the maximum population included in the circle when the algorithm detecting the secondary clusters. 
+
+I decide to change the parameter from 0.5 to 0.35, 0.20, and 0.05. That is when I decide to decrease the parameter further. When I tried 0.15, the cluster appears smaller, showing some urban clusters that were on the edge of the cluster when the parameter is 0.5. After producing the clusters of circles for thess different parameters, I will demonstrate a map that shows the circles of the clusters with the COVID-19 rate as an underlying map in order to show whether the clusters are fair representations of the COVID-19 cases. 
+
+I first tried to decrease the parameter to 0.35, but the cluster of the South is not significantly impacted. 
