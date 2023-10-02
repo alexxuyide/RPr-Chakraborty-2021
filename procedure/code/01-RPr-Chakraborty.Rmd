@@ -770,9 +770,9 @@ rm(start_time )
 
 ```
 
-When pop.upper.bound = 0.35
+When pop.upper.bound = 0.15
 
-```{r}
+```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
 start_time_015 <- Sys.time()
 covid_geo <- covid_table %>%
   select(x, y) %>%
@@ -808,11 +808,11 @@ rm(start_time_015)
 
 ```
 
-```{r}
+```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
 
 # {save results in a file appended with the current date}
 
-saveRDS(covid_kulldorff, file = here("data", "derived", "public", paste0("covid_kulldorff _", Sys.Date(), ".RDS")) )
+saveRDS(covid_kulldorff, file = here("data", "derived", "public", paste0("covid_kulldorff_", Sys.Date(), ".RDS")) )
 
 saveRDS(covid_kulldorff_015, file = here("data", "derived", "public", paste0("covid_kulldorff_015_", Sys.Date(), ".RDS")) )
 
@@ -824,9 +824,13 @@ Alternatively, skip or modify this code block to use your own version of the Spa
 ```{r load-Kulldorff}
 # load pre-calculated Kulldorff results
 # alternatively, modify the file name with an appended date to load a more current set of results
-#covid_kulldorff  <- readRDS(
-#  here("data", "derived", "public", "covid_kulldorff.RDS")
-#)
+covid_kulldorff  <- readRDS(
+  here("data", "derived", "public", "covid_kulldorff.RDS")
+)
+
+covid_kulldorff_015  <- readRDS(
+  here("data", "derived", "public", "covid_kulldorff_015_2023-10-01.RDS")
+)
 ```
 
 Report Kulldorff spatial scan results.
