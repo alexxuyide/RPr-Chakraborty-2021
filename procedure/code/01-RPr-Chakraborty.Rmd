@@ -808,6 +808,83 @@ rm(start_time_015)
 
 ```
 
+When pop.upper.bound = 0.1
+
+```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
+start_time_010 <- Sys.time()
+covid_geo <- covid_table %>%
+  select(x, y) %>%
+  latlong2grid()
+# latlong2grid creates approximate equidistant cylindrical grid
+# could probably reproject to epsg 5070 and create table with x and y
+
+# calculate expected cases with one strata
+expected.cases <- expected(covid_table$pop, covid_table$cases, 1)
+
+# Kulldorff spatial scan statistic
+covid_kulldorff_010 <- kulldorff(
+  geo = covid_geo,
+  cases = covid_table$cases,
+  population = covid_table$pop,
+  expected.cases = expected.cases,
+  pop.upper.bound = 0.1,
+  n.simulations = 999,
+  alpha.level = 0.05,
+  plot = TRUE
+)
+
+print(
+  paste(
+    "Run time:",
+    round(difftime(Sys.time(), start_time_010, units = "mins"), 2),
+    "minutes"
+  ),
+  quote = FALSE
+)
+rm(start_time_010)
+#covid_geo, expected.cases,
+
+```
+
+When pop.upper.bound = 0.05
+
+```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
+start_time_005 <- Sys.time()
+covid_geo <- covid_table %>%
+  select(x, y) %>%
+  latlong2grid()
+# latlong2grid creates approximate equidistant cylindrical grid
+# could probably reproject to epsg 5070 and create table with x and y
+
+# calculate expected cases with one strata
+expected.cases <- expected(covid_table$pop, covid_table$cases, 1)
+
+# Kulldorff spatial scan statistic
+covid_kulldorff_005 <- kulldorff(
+  geo = covid_geo,
+  cases = covid_table$cases,
+  population = covid_table$pop,
+  expected.cases = expected.cases,
+  pop.upper.bound = 0.1,
+  n.simulations = 999,
+  alpha.level = 0.05,
+  plot = TRUE
+)
+
+print(
+  paste(
+    "Run time:",
+    round(difftime(Sys.time(), start_time_005, units = "mins"), 2),
+    "minutes"
+  ),
+  quote = FALSE
+)
+rm(start_time_005)
+#covid_geo, expected.cases,
+
+```
+
+
 ```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
 
 # {save results in a file appended with the current date}
@@ -815,6 +892,10 @@ rm(start_time_015)
 saveRDS(covid_kulldorff, file = here("data", "derived", "public", paste0("covid_kulldorff_", Sys.Date(), ".RDS")) )
 
 saveRDS(covid_kulldorff_015, file = here("data", "derived", "public", paste0("covid_kulldorff_015_", Sys.Date(), ".RDS")) )
+
+saveRDS(covid_kulldorff_010, file = here("data", "derived", "public", paste0("covid_kulldorff_010_", Sys.Date(), ".RDS")) )
+
+saveRDS(covid_kulldorff_005, file = here("data", "derived", "public", paste0("covid_kulldorff_005_", Sys.Date(), ".RDS")) )
 
 ```
 
@@ -831,6 +912,14 @@ covid_kulldorff  <- readRDS(
 covid_kulldorff_015  <- readRDS(
   here("data", "derived", "public", "covid_kulldorff_015_2023-10-01.RDS")
 )
+
+covid_kulldorff_010  <- readRDS(
+  here("data", "derived", "public", "covid_kulldorff_010.RDS")
+)
+
+covid_kulldorff_005  <- readRDS(
+  here("data", "derived", "public", "covid_kulldorff_005.RDS")
+)
 ```
 
 Report Kulldorff spatial scan results.
@@ -846,12 +935,32 @@ print(
   quote = FALSE
 )
 
-print("Most likely cluster 35 percent:", quote = FALSE)
+print("Most likely cluster 15 percent:", quote = FALSE)
 covid_kulldorff_015$most.likely.cluster
 print(
   paste0(
     "Number of Secondary clusters: ",
     length(covid_kulldorff_015$secondary.clusters)
+  ),
+  quote = FALSE
+)
+
+print("Most likely cluster 10 percent:", quote = FALSE)
+covid_kulldorff_010$most.likely.cluster
+print(
+  paste0(
+    "Number of Secondary clusters: ",
+    length(covid_kulldorff_010$secondary.clusters)
+  ),
+  quote = FALSE
+)
+
+print("Most likely cluster 5 percent:", quote = FALSE)
+covid_kulldorff_005$most.likely.cluster
+print(
+  paste0(
+    "Number of Secondary clusters: ",
+    length(covid_kulldorff_005$secondary.clusters)
   ),
   quote = FALSE
 )
@@ -917,6 +1026,66 @@ for (i in secondary_015) {
 rm(cluster_locations_015, secondary_015, i, new_clusters)
 ```
 
+
+### Alex's deviation
+
+Do the same thing for pop upper bound = 10%
+
+```{r}
+# list of primary cluster locations (counties)
+cluster_locations_010 <- covid_kulldorff_010$most.likely.cluster$location.IDs.included
+
+# create data frame of clusters and
+# calculate the clusterID as the first (center) county FIPS code
+clusters_010 <- covid_table[cluster_locations_010, "fips"] %>%
+  mutate(clusterID_010 = covid_table[[cluster_locations_010[1], "fips"]],
+         likelihood = covid_kulldorff_010$most.likely.cluster$log.likelihood.ratio)
+
+# Get a list of secondary clusters
+secondary_010 <- covid_kulldorff_010$secondary.clusters
+
+# similarly add counties in each secondary cluster to the list of clusters
+for (i in secondary_010) {
+  cluster_locations_010 <- i$location.IDs.included
+  new_clusters <- covid_table[cluster_locations_010, "fips"] %>%
+    mutate(clusterID_010 = covid_table[[cluster_locations_010[1], "fips"]],
+           likelihood = i$log.likelihood.ratio)
+  clusters_010 <- clusters_010 %>% rbind(new_clusters)
+}
+
+rm(cluster_locations_010, secondary_010, i, new_clusters)
+```
+
+### Alex's deviation
+
+Do the same thing for pop upper bound = 5%
+
+```{r}
+# list of primary cluster locations (counties)
+cluster_locations_005 <- covid_kulldorff_005$most.likely.cluster$location.IDs.included
+
+# create data frame of clusters and
+# calculate the clusterID as the first (center) county FIPS code
+clusters_005 <- covid_table[cluster_locations_005, "fips"] %>%
+  mutate(clusterID_005 = covid_table[[cluster_locations_005[1], "fips"]],
+         likelihood = covid_kulldorff_005$most.likely.cluster$log.likelihood.ratio)
+
+# Get a list of secondary clusters
+secondary_005 <- covid_kulldorff_005$secondary.clusters
+
+# similarly add counties in each secondary cluster to the list of clusters
+for (i in secondary_005) {
+  cluster_locations_005 <- i$location.IDs.included
+  new_clusters <- covid_table[cluster_locations_005, "fips"] %>%
+    mutate(clusterID_005 = covid_table[[cluster_locations_005[1], "fips"]],
+           likelihood = i$log.likelihood.ratio)
+  clusters_005 <- clusters_005 %>% rbind(new_clusters)
+}
+
+rm(cluster_locations_005, secondary_005, i, new_clusters)
+```
+
+
 ### Map Kulldorff clusters
 
 **Unplanned deviation for reproduction**: The original study does not include visualizations of the spatial structure and distribution of COVID-19 clusters.
@@ -941,6 +1110,22 @@ acs_covid_015 <- acs_covid[, 1:which(colnames(acs_covid) == "or_incidence")] %>%
   mutate(isCluster = case_when(
     clusterID_015 == fips ~ "center of cluster",
     !is.na(clusterID_015) ~ "other part of cluster",
+    .default = NA
+  ))
+
+acs_covid_010 <- acs_covid[, 1:which(colnames(acs_covid) == "or_incidence")] %>%
+  left_join(clusters_010, by = "fips") %>%
+  mutate(isCluster = case_when(
+    clusterID_010 == fips ~ "center of cluster",
+    !is.na(clusterID_010) ~ "other part of cluster",
+    .default = NA
+  ))
+
+acs_covid_005 <- acs_covid[, 1:which(colnames(acs_covid) == "or_incidence")] %>%
+  left_join(clusters_005, by = "fips") %>%
+  mutate(isCluster = case_when(
+    clusterID_005 == fips ~ "center of cluster",
+    !is.na(clusterID_005) ~ "other part of cluster",
     .default = NA
   ))
 
@@ -978,7 +1163,47 @@ tm_spatialepi_clusters_015 <-
           palette = "-Oranges",
           popup.vars = c("fips", "clusterID"),
           colorNA = NULL,
-          title = "SpatialEpi Kulldorff COVID-19 Clusters Pop=35%",
+          title = "SpatialEpi Kulldorff COVID-19 Clusters Pop=15%",
+          border.col = "white",
+          lwd = 0.2,
+          border.alpha = 0.2) +
+  tm_shape(state) +
+    tm_borders("grey", lwd = 0.5) +
+  tm_layout(
+    legend.position = c("left", "bottom"),
+    legend.title.size = 0.8,
+    legend.text.size = 0.5
+  )
+
+tm_spatialepi_clusters_010 <-
+  tm_shape(state) +
+    tm_fill("gray98") +
+  tm_shape(acs_covid_010) +
+  tm_polygons(col = "isCluster",
+          palette = "-Oranges",
+          popup.vars = c("fips", "clusterID"),
+          colorNA = NULL,
+          title = "SpatialEpi Kulldorff COVID-19 Clusters Pop=10%",
+          border.col = "white",
+          lwd = 0.2,
+          border.alpha = 0.2) +
+  tm_shape(state) +
+    tm_borders("grey", lwd = 0.5) +
+  tm_layout(
+    legend.position = c("left", "bottom"),
+    legend.title.size = 0.8,
+    legend.text.size = 0.5
+  )
+
+tm_spatialepi_clusters_005 <-
+  tm_shape(state) +
+    tm_fill("gray98") +
+  tm_shape(acs_covid_005) +
+  tm_polygons(col = "isCluster",
+          palette = "-Oranges",
+          popup.vars = c("fips", "clusterID"),
+          colorNA = NULL,
+          title = "SpatialEpi Kulldorff COVID-19 Clusters Pop=5%",
           border.col = "white",
           lwd = 0.2,
           border.alpha = 0.2) +
@@ -992,6 +1217,8 @@ tm_spatialepi_clusters_015 <-
 
 tm_spatialepi_clusters 
 tm_spatialepi_clusters_015
+tm_spatialepi_clusters_010
+tm_spatialepi_clusters_005
 ```
 
 **Unplanned deviation for reproduction**: The `SpatialEpi` implementation of Kulldorff spatial scan statistics does not calculate local relative risk or cluster relative risk.
@@ -1122,6 +1349,48 @@ rm(class_freq)
 
 tm_spatialepi_cluster_risk_class
 ```
+
+### Alex's New Map
+Mapping the difference between the cluster relative risk class and the county relative risk class
+
+```{r}
+acs_covid <- acs_covid %>%
+  mutate(local_cluster_diff = loc_class - cluster_class)
+
+# count the frequency of counties in each class and create labels
+class_freq <- acs_covid %>% st_drop_geometry() %>% count(local_cluster_diff)
+class_freq$qual <- ifelse(class_freq$n > 1, " counties", " county")
+class_freq$label <- paste0(class_freq$local_cluster_diff,
+                           " (",
+                           class_freq$n,
+                           class_freq$qual,
+                           ")")
+
+
+# map cluster relative risk scores
+tm_spatialepi_risk_class_diff <- tm_shape(acs_covid) +
+  tm_polygons("local_cluster_diff",
+    title = "RR Class Difference (Local-Cluster)",
+    border.col = "white",
+    border.alpha = .2,
+    lwd = 0.2,
+    palette = "BrBG",
+    style = "cat",
+    labels = class_freq$label
+  ) +
+  tm_shape(state) +
+  tm_borders("grey", lwd = .5) +
+  tm_layout(
+    legend.position = c("left", "bottom"),
+    legend.title.size = 0.8,
+    legend.text.size = 0.5
+  )
+rm(class_freq)
+
+tm_spatialepi_risk_class_diff
+```
+
+
 
 Comparing the cluster and local relative risk classifications for regions like the Southeast, it is apparent that some areas of high risk are represented with large clusters that have an averaging effect on the cluster-based relative risk score.
 This effect is more pronounced for clusters with low compactness (e.g. the Southeast cluster stretched over the "black belt" region from Louisiana and Arkansas to Georgia) than clusters with higher compactness (e.g. New York City) because the circular shape of clusters includes more low-risk counties.
