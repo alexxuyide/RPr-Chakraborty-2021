@@ -2,12 +2,12 @@
 title: "Reproduction of Chakraborty 2021: An intracategorical analysis of COVID-19 and people with disabilities"
 author: "Joseph Holler, Junyi Zhou, Peter Kedron, Drew An-Pham, Derrick Burt, Alex Xu"
 date: "`r Sys.Date()`"
-output: pdf_document
+output: html_document
 editor_options:
   markdown:
     wrap: sentence
 knit: (function(inputFile, encoding) {
-  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../../docs/report") })
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../../docs") })
 ---
 
 Version 2.1 \| First Created July 7, 2021 \| Updated September, 2023
@@ -729,7 +729,7 @@ We expected that this set of software options could reproduce identical results 
 First, calculate the Kulldorff spatial scan statistic using SpatialEpi.
 Optionally, skip this code block due to long run times of more than 10 minutes.
 
-###Alex's deviation plan starts
+### Alex's modification plan
 
 In my modification study, I chose to change the population threshold of the Kulldorff scan statistics of SpatialEpi and see how it would affect the extent of the clusters.
 At default condition, under which the original study was conducted, the threshold `pop.upper.bound` was kept as 50%.
@@ -759,9 +759,7 @@ covid_kulldorff <- kulldorff(
   alpha.level = 0.05,
   plot = TRUE
 )
-```
 
-```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
 print(
   paste(
     "Run time:",
@@ -778,7 +776,7 @@ rm(start_time )
 
 When pop.upper.bound = 0.15
 
-```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
+```{r SpatialEpi-Kulldorff_015, eval = FALSE, fig.width=4, fig.height=4}
 start_time_015 <- Sys.time()
 covid_geo <- covid_table %>%
   select(x, y) %>%
@@ -816,7 +814,7 @@ rm(start_time_015)
 
 When pop.upper.bound = 0.1
 
-```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
+```{r SpatialEpi-Kulldorff_010, eval = FALSE, fig.width=4, fig.height=4}
 start_time_010 <- Sys.time()
 covid_geo <- covid_table %>%
   select(x, y) %>%
@@ -854,7 +852,7 @@ rm(start_time_010)
 
 When pop.upper.bound = 0.05
 
-```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
+```{r SpatialEpi-Kulldorff_005, eval = FALSE, fig.width=4, fig.height=4}
 start_time_005 <- Sys.time()
 covid_geo <- covid_table %>%
   select(x, y) %>%
@@ -1002,11 +1000,10 @@ for (i in secondary ) {
 rm(cluster_locations , secondary , i, new_clusters)
 ```
 
-### Alex's deviation: changing the population upper bound in Kulldorff spatial scan to 15%
+### Alex's deviation: changing the population upper bound in Kulldorff spatial scan to 15%, 10%, and 5%
 
-Do the same thing for pop upper bound = 15%
 
-```{r}
+```{r assign-cluster-IDs_15, message = FALSE}
 # list of primary cluster locations (counties)
 cluster_locations_015 <- covid_kulldorff_015$most.likely.cluster$location.IDs.included
 
@@ -1031,11 +1028,9 @@ for (i in secondary_015) {
 rm(cluster_locations_015, secondary_015, i, new_clusters)
 ```
 
-### Alex's deviation: changing the population upper bound in Kulldorff spatial scan to 10%
 
-Do the same thing for pop upper bound = 10%
 
-```{r}
+```{r assign-cluster-IDs_10, message = FALSE}
 # list of primary cluster locations (counties)
 cluster_locations_010 <- covid_kulldorff_010$most.likely.cluster$location.IDs.included
 
@@ -1060,11 +1055,8 @@ for (i in secondary_010) {
 rm(cluster_locations_010, secondary_010, i, new_clusters)
 ```
 
-### Alex's deviation: changing the population upper bound in Kulldorff spatial scanto 5%
 
-Do the same thing for pop upper bound = 5%
-
-```{r}
+```{r assign-cluster-IDs_5, message = FALSE}
 # list of primary cluster locations (counties)
 cluster_locations_005 <- covid_kulldorff_005$most.likely.cluster$location.IDs.included
 
