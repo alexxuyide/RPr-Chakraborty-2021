@@ -888,7 +888,7 @@ rm(start_time_005)
 
 ```
 
-```{r SpatialEpi-Kulldorff, eval = FALSE, fig.width=4, fig.height=4}
+```{r SpatialEpi-Kulldorff-save, eval = FALSE, fig.width=4, fig.height=4}
 
 # {save results in a file appended with the current date}
 
